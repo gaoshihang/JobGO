@@ -1,0 +1,5 @@
+1.finally代码块中的代码什么时候执行？  
+  finally代码块中的代码在return之前执行。比如try和catch中都有return语句，finally中的代码会在其之前执行。
+  
+2.finally中的代码一定会执行吗？
+  不一定。如果在try和catch中使用了System.exit(0),则finally不会执行，因为JVM已经关闭。
