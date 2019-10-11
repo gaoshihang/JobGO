@@ -1,0 +1,16 @@
+1.String
+  String是不可变的，一般有两种使用方法：
+  （1）String str = "abc";
+  （2）String str = new String("abc");
+  
+  这两种方法的机制不同。第一种，会在字符串常量池中查找，如果找到，返回相同的引用；第二种，会直接在堆里创建新的对象。
+  
+  如果要执行以下操作：String str1 = str + "123";
+  实际上是创建了StringBuilder对象，调用其append方法，再通过toString转换为String。
+  String对象每次修改都需要生成一个新的String对象，造成资源浪费。
+  
+2.StringBuilder、StringBuffer
+  StringBuilder是可变的，但是线程不安全。StringBuffer是其线程安全实现，其实用了synchronized机制。
+  
+3.效率
+  一般来说：StringBuilder > StringBuffer > String
