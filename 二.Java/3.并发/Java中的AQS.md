@@ -12,3 +12,5 @@ CLH队列是一个虚拟双向队列（不存在队列实例，仅存在结点�
 （1）独占：只有一个线程能执行，如ReentrantLock。  
 （2）共享：多个线程可同时执行，如：CountDownLatch、Semaphore。
 
+### 4.参考资料
+https://mp.weixin.qq.com/s/zdn54VeNSsabwDd3CBvSoA
