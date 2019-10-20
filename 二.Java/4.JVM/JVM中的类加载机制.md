@@ -66,6 +66,18 @@ Java实现，独立于JVM外部，全部继承自抽象类java.lang.ClassLoader�
 例如：java.lang.Object，存放在rt.jar中，无论哪个类加载器需要加载这个类，最终会委派给最顶端的启动类加载器进行加载，因此Object类在程序的各种类加载器环境中都是同一个类（使用同一个类加载器加载）。  
 如果没有双亲委派模型，由各个类自己去加载，如果用户编写了一个java.lang.Object类，并放在程序的ClassPath中，那么系统将出现多个不同的Object类，Java类型体系中最基础的行为就无法保证。  
 
+**主要代码实现**  
+实现双亲委派的代码都集中在java.lang.ClassLoader的loadClass()方法中，逻辑如下：先检查是否已经被加载过，若没有加载则调用父加载器的loadClass()方法，若父加载器为空则默认使用启动类加载器作为父类加载器。如果父类加载失败，抛出ClassNotFoundException异常后，再调用自己的findClass()方法进行加载。  
+
+**怎么实现自定义类加载器**  
+继承java.lang.ClassLoader类，重写其findClass()方法。  
+
+**怎么打破双亲委派模型？**  
+（1）自己写一个类加载器  
+（2）重写loadClass()方法  
+（3）重写findClass()方法  
+
+
 
 
 
