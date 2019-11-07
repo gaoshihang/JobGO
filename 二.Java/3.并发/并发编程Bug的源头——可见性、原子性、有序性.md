@@ -20,7 +20,41 @@
 （3）将结果写回内存（或缓存）。  
 **任务切换时，可能发生在任何一条CPU指令执行完，而不是高级语言的一条语句**。如下图所示：  
 ![线程切换](https://upload-images.jianshu.io/upload_images/2818100-f8e067e3d65db094.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)  
-**我们把任何**
+**我们把一个或者多个操作在CPU执行的过程中不被中断的特性称为原子性**。  
+很多时候，我们需要在高级语言层面保证操作的原子性。  
+
+### 三.源头三：编译优化带来的有序性问题
+有序性指的是程序按照代码的先后顺序执行。编译器为了优化性能，有时候可能会改变程序中语句的先后顺序。有的时候，编译器调整顺序后不影响程序的最终结果，但是有时候可能会导致意想不到的Bug。  
+例如以下单例方法：  
+```
+public class Singleton{
+  static Singleton instance;
+  static Singleton getInstance(){
+    if(instance == null){
+      synchronized(Singleton.class){
+        if(instance == null){
+          instance = new Singleton();
+        }
+      }
+    }
+  }
+  return instace;
+}
+```
+这段代码在new Singleton()这里可能会发生问题，我们认为的new操作应该是：  
+（1）分配一块内存M；  
+（2）在内存M上初始化Singleton对象；  
+（3）然后M的地址赋值给instance。  
+
+但是实际上，优化后的执行是这样的：  
+（1）分配一块内存M；  
+（2）将M的地址赋值给instance变量；  
+（3）最后在内存M上初始化Singleton对象。  
+
+优化可能会产生以下情况：  
+![有序性优化](https://upload-images.jianshu.io/upload_images/2818100-249d67810401be3a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)  
+
+
 
 
 
