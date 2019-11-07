@@ -36,9 +36,35 @@ class X{
 &emsp;synchronized关键字解决多线程之间访问资源的同步性，可以保证被它修饰的方法或代码块在任意时刻只能有一个线程执行。  
 &emsp;在Java早期版本中，synchronized属于重量级锁，效率低下，因为监视器锁（monitor）是依赖于底层的操作系统的Mutex Lock，Java的线程是映射到操作系统的原生线程上的。  
 &emsp;如果要挂起或者唤醒一个线程，需要操作系统帮助完成，而操作系统实现线程之间的切换需要从用户态转换到内核态，这个转换的时间成本是很高的，所以早期synchronized是很低效的。  
-&emsp;所以，在JDK6之后从JVM层面对synchronized进行了较大优化，引入了如自旋锁、锁消除、锁粗化、偏向锁、轻量级锁等技术来减少锁操作的开销。  
+&emsp;所以，在JDK6之后从JVM层面对synchronized进行了较大优化，引入了如自旋锁、锁消除、锁粗化、偏向锁、轻量级锁等技术来减少锁操作的开销。 
 
-### 2.synchronized的底层原理
+### 3.如何用一把锁保护多个资源？
+**受保护资源和锁之间合理的关联关系应该是N:1的关系**。也就是说，可以用一把锁保护多个资源，不能用多把锁保护一个资源。  
+当要保护多个资源时，首先要区分这些资源是否存在关联关系。  
+
+如果要保护相互有关联的多个资源，比如A对B转账这个操作，**需要所有对象都持有一个唯一性的对象，其在创建对象时传入**。  
+但是，**更好的办法是，用Account.class作为共享的锁**，Account.class是所有Account对象共享的，且这个对象是JVM在加载Account类的时候创建的，所以我们不用担心其唯一性。代码如下所示：  
+```
+public class Account {
+
+    private int balance;
+
+    //转账
+    void transfer(Account target, int amt){
+        //此处检查所有对象共享的锁
+        synchronized (Account.class){
+            if(this.balance > amt){
+                this.balance -= amt;
+                target.balance += amt;
+            }
+        }
+    }
+}
+```
+**总结**：对于保护多个资源，关键是要分析多个资源之间的关系。如果资源之间没关系，很好处理，每个资源一把锁即可。如果资源之间有关联关系，就要选择一个粒度更大的锁，这个锁需要覆盖所有相关资源。  
+关联关系其实是一种“原子性”特征，**原子性的本质是操作的中间状态对外不可见，要解决原子性问题，要保证中间状态对外不可见**。  
+
+### 4.synchronized的底层原理
 #### （1）synchronized同步语句块的情况
 ```
 public class SynchronizedDemo{
@@ -65,7 +91,7 @@ public class SynchronizedDemo2{
 ```
 &emsp;这时，并没有monitorenter指令和monitorexit指令，而是ACC_SYNCHRONIZED标识，该标识指明了该方法是一个同步方法，从而执行相应的同步调用。
 
-### 3.如何在项目中使用synchronized？
+### 5.如何在项目中使用synchronized？
 synchronized最主要的三种使用方式：  
 #### （1）修饰实例方法：作用于当前对象实例加锁，进入同步代码前要获得当前对象实例的锁；
 #### （2）修饰静态方法：作用于类对象加锁，会作用于当前类的所有对象实例。
@@ -104,7 +130,7 @@ instance = new Singleton();
 但是由于JVM有指令重排特性，可能执行顺序变为了1->3->2，这是在多线程环境会导致一个线程获得还没有初始化的实例。  
 **volatile可以禁止JVM的指令重排。**
 
-### 4.JDK1.6后的synchronized是如何优化的？
+### 6.JDK1.6后的synchronized是如何优化的？
 &emsp;锁主要存在4种状态：无锁、偏向锁、轻量级锁、重量级锁，他们会随着竞争的激烈逐渐升级。锁可以升级而不可降级，这种策略是为了提高获得锁和释放锁
 的效率。
 
@@ -155,7 +181,7 @@ public class DoSomeThing{
 }
 ```
 
-### 5.synchronized与ReenTrantLock的区别
+### 7.synchronized与ReenTrantLock的区别
 （1）synchronized是关键字，ReentrantLock是类，这是二者的本质区别。ReentrantLock提供了更多灵活特性：等待可中断、公平锁等。  
 （2）synchronized依赖于JVM，而ReentrantLock依赖于API。
 
