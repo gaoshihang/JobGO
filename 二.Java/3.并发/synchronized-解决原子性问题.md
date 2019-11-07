@@ -1,10 +1,42 @@
-### 1.synchronized基本了解
+一个或多个操作在CPU执行过程中不被中断的特性，称为“原子性”。  
+
+### 1.如何解决原子性问题？
+long型变量在32位机器上读写会出现诡异bug：把变量成功写入内存，重新读出来却不是自己写入的。  
+long型变量是64位的，在32位CPU上执行写操作会被拆分为两次写操作（写高32位和写低32位），如下图所示：  
+![long类型](https://upload-images.jianshu.io/upload_images/2818100-63474ac944e7e2dd.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)  
+在单核场景下，同一时刻只有一个线程执行，禁止CPU中断，这时两个写操作一定是：要么都被执行，要么都没有执行，具有原子性。  
+但是在多核场景下，同一时刻可能有两个线程在执行，如果这两个线程同时写long型变量高32位的话，可能会出现开头提及的bug。  
+
+**同一时刻只有一个线程执行，这个条件我们称之为互斥。**如果能够保证对共享变量的修改是互斥的，那么无论是单核CPU还是多核CPU，都能保证原子性。  
+
+### 2.synchronized基本了解
+synchronized是锁的一种实现，其可以用来修饰方法、代码块，如下所示：  
+```
+class X{
+  //修饰非静态方法
+  synchronized void foo(){
+    //临界区
+  }
+  //修饰静态方法
+  synchronized static void bar(){
+    //临界区
+  }
+  //修饰代码块
+  Object obj = new Object();
+  void baz(){
+    synchronized(obj){
+      //临界区
+    }
+  }
+}
+```
+当修饰静态方法时，锁定的是当前类的Class对象，在上例中就是Class X；  
+当修饰非静态方法时，锁定的是当前实例对象this。  
+
 &emsp;synchronized关键字解决多线程之间访问资源的同步性，可以保证被它修饰的方法或代码块在任意时刻只能有一个线程执行。  
-&emsp;在Java早期版本中，synchronized属于重量级锁，效率低下，因为监视器锁（monitor）是依赖于底层的操作系统的Mutex Lock，Java的线程是映射到操作系统
-的原生线程上的。  
-&emsp;如果要挂起或者唤醒一个线程，需要操作系统帮助完成，而操作系统实现线程之间的切换需要从用户态转换到内核态，这个转换的时间成本是很高的，所以早期
-synchronized是很低效的。  
-&emsp;所以，在JDK6之后从JVM层面对synchronized进行了较大优化，引入了如自旋锁、锁消除、锁粗化、偏向锁、轻量级锁等技术来减少锁操作的开销。
+&emsp;在Java早期版本中，synchronized属于重量级锁，效率低下，因为监视器锁（monitor）是依赖于底层的操作系统的Mutex Lock，Java的线程是映射到操作系统的原生线程上的。  
+&emsp;如果要挂起或者唤醒一个线程，需要操作系统帮助完成，而操作系统实现线程之间的切换需要从用户态转换到内核态，这个转换的时间成本是很高的，所以早期synchronized是很低效的。  
+&emsp;所以，在JDK6之后从JVM层面对synchronized进行了较大优化，引入了如自旋锁、锁消除、锁粗化、偏向锁、轻量级锁等技术来减少锁操作的开销。  
 
 ### 2.synchronized的底层原理
 #### （1）synchronized同步语句块的情况
