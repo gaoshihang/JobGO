@@ -1,6 +1,66 @@
+## 一.理论知识
+### 1.Java中线程的生命周期
+各种开发语言的线程都是基于操作系统线程。
+#### 通用的线程生命周期
+五态模型：初始状态、可运行状态、运行状态、休眠状态和终止状态。  
+![五态模型](https://upload-images.jianshu.io/upload_images/2818100-69785257bd7dcdb8.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)  
+
+（1）初始状态：线程已经被创建，但是还不能被分配CPU执行。属于编程语言层面，在操作系统层面真正的线程还没有被创建；  
+（2）可运行状态：操作系统层面的线程已经创建，可以分配CPU执行；  
+（3）运行状态：线程分配到了CPU，进入运行状态；  
+（4）休眠状态：运行状态的线程如果调用一个阻塞的 API（例如以阻塞方式读文件）或者等待某个事件（例如条件变量），那么线程的状态就会转换到休眠状态，同时释放 CPU 使用权，休眠状态的线程永远没有机会获得 CPU 使用权。当等待的事件出现了，线程就会从休眠状态转换到可运行状态。  
+（5）终止状态：线程执行完或遇到异常。  
+
+#### Java中线程生命周期
+Java中共有六种状态，分别是：  
+（1）NEW：新建状态  
+（2）RUNNABLE：可运行/运行状态  
+（3）BLOCKED：阻塞状态  
+（4）WAITING：无限时等待状态  
+（5）TIMED_WAITING：有时限等待状态  
+（6）TERMINATED：终止状态  
+
+**在操作系统层面，BLOCKED、WAITING、TIMED_WATING都是操作系统的休眠状态，也就是说永远没有机会获得CPU使用权**。  
+![Java线程状态](https://upload-images.jianshu.io/upload_images/2818100-fb4ec6509d81271c.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)  
+
+##### RUNNABLE与BLOCKED的转换
+只有一种场景会触发这种转换，就是线程等待 synchronized 的隐式锁。synchronized 修饰的方法、代码块同一时刻只允许一个线程执行，其他线程只能等待，这种情况下，等待的线程就会从 RUNNABLE 转换到 BLOCKED 状态。而当等待的线程获得 synchronized 隐式锁时，就又会从 BLOCKED 转换到 RUNNABLE 状态。  
+
+##### RUNNABLE与WAITING的转换
+总体来说，有三种场景会触发这种转换。  
+（1）第一种场景，获得 synchronized 隐式锁的线程，调用无参数的 Object.wait() 方法。  
+
+（2）第二种场景，调用无参数的 Thread.join() 方法。其中的 join() 是一种线程同步方法，例如有一个线程对象 thread A，当调用 A.join() 的时候，执行这条语句的线程会等待 thread A 执行完，而等待中的这个线程，其状态会从 RUNNABLE 转换到 WAITING。当线程 thread A 执行完，原来等待它的线程又会从 WAITING 状态转换到 RUNNABLE。  
+
+（3）第三种场景，调用 LockSupport.park() 方法。其中的 LockSupport 对象，也许你有点陌生，其实 Java 并发包中的锁，都是基于它实现的。调用 LockSupport.park() 方法，当前线程会阻塞，线程的状态会从 RUNNABLE 转换到 WAITING。调用 LockSupport.unpark(Thread thread) 可唤醒目标线程，目标线程的状态又会从 WAITING 状态转换到 RUNNABLE。  
+
+##### RUNNABLE与TIMED_WAITING的转换
+有五种场景会触发这种转换：  
+（1）调用带超时参数的 Thread.sleep(long millis) 方法；  
+（2）获得 synchronized 隐式锁的线程，调用带超时参数的 Object.wait(long timeout) 方法；  
+（3）调用带超时参数的 Thread.join(long millis) 方法；  
+（4）调用带超时参数的 LockSupport.parkNanos(Object blocker, long deadline) 方法；  
+（5）调用带超时参数的 LockSupport.parkUntil(long deadline) 方法。  
+这里你会发现 TIMED_WAITING 和 WAITING 状态的区别，仅仅是触发条件多了超时参数。  
+
+##### NEW到RUNNABLE状态
+Java刚刚创建出来线程对象就是NEW状态，调用了start方法后进入RUNNABLE状态。  
+
+##### RUNNABLE到TERMINATED状态
+线程执行完 run() 方法后，会自动转换到 TERMINATED 状态，当然如果执行 run() 方法的时候异常抛出，也会导致线程终止。  
+有时候我们需要强制中断 run() 方法的执行，例如 run() 方法访问一个很慢的网络，我们等不下去了，想终止怎么办呢？Java 的 Thread 类里面倒是有个 stop()方法，不过已经标记为 @Deprecated，所以不建议使用了。正确的姿势其实是调用 interrupt()方法。  
+
+#### 如何诊断多线程BUG？
+多线程程序很难调试，出了 Bug 基本上都是靠日志，靠线程 dump 来跟踪问题，分析线程 dump 的一个基本功就是分析线程状态，大部分的死锁、饥饿、活锁问题都需要跟踪分析线程的状态。  
+你可以通过 jstack 命令或者Java VisualVM这个可视化工具将 JVM 所有的线程栈信息导出来，完整的线程栈信息不仅包括线程的当前状态、调用栈，还包括了锁的信息。  
+
+
+
+
+## 二.一些面试题
 ### 1.进程和线程的区别
 **进程**：**程序运行和资源分配的基本单位**。一个程序至少有一个进程，一个进程至少有一个线程。**进程在执行过程中拥有独立的内存单元，
-而多个线程共享内存资源，减少切换次数，从而效率更高。**
+而多个线程共享内存资源，减少切换次数，从而效率更高。**  
 **线程**：**CPU调度和分派的基本单位**，比进程更小的能独立运行的基本单位。同一个进程中的多个线程间可以并发执行。
 
 ### 2. 守护线程是什么？
@@ -57,8 +117,6 @@ notify()/notifyAll()唤醒指定线程或所有线程，才会进入锁池，再
 （4）使用ReentrantLock  
 （5）使用阻塞队列  
 （6）使用信号量Semaphore
-
-### 10.Thread.interrupt()方法的工作原理
 
 
 
