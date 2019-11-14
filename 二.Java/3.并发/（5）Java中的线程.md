@@ -79,7 +79,34 @@ IO设备的速度相对于CPU来说很慢，大部分情况下，IO操作执行�
 工程上，一般会设置为**CPU cores+1**，这样当线程因为偶尔的内存页失效或其他原因阻塞时，额外的线程可以顶上，保证CPU利用率。  
 **（2）对于IO密集型计算**：最佳线程数=CPU核数*[1+（IO耗时/CPU耗时）]。
 
+### 3.为什么局部变量是线程安全的？
+局部变量是不存在数据竞争的，在CPU层面，是没有方法概念的，CPU眼里只有一条条的指令。编译程序，负责把高级语言里的方法转换成一条条的指令。  
 
+#### 方法是如何被执行的？
+假如有以下代码：  
+```
+int a = 7;
+int[] b = fibonacci(a);
+int[] c = b;
+```
+当调用fibonacci(a)时，CPU要先找到该方法的地址，然后跳转到这个方法去执行代码，执行完后，要能够返回。首先找到调用方法的下一条语句地址，再跳转到这个地址去执行。  
+![方法调用过程](https://upload-images.jianshu.io/upload_images/2818100-e4419bcb0e1f0dd3.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)  
+**CPU去哪里找到调用方法的参数和返回地址**？通过CPU的堆栈寄存器。CPU支持一种栈结构，和方法调用相关，因此常被称为**调用栈**。  
+每个方法在调用栈里都有自己的独立空间，称为栈帧，每个栈帧里都有对应方法需要的参数和返回地址。调用方法时，产生新的栈帧，入栈；返回时，对应栈帧被弹出。**栈帧和方法是同生共死的**。加入三个方法A、B、C，A调用B，B调用C，其三者的调用栈如下：  
+![调用栈](https://upload-images.jianshu.io/upload_images/2818100-53a8f4d9a8c17e7a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)  
+#### 局部变量存哪里？
+方法内的局部变量存哪里？  
+局部变量的作用域是方法内部，随着方法同生共死，所以局部变量是放在栈帧中。  
+![局部变量](https://upload-images.jianshu.io/upload_images/2818100-d142e31e33ee061c.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)  
+**一个变量如果想跨越方法的边界，就必须创建在堆里**。  
+
+#### 调用栈与线程
+两个线程可以同时用不同的参数调用相同的方法，**每个线程都有自己独立的调用栈**。  
+![独立调用栈](https://upload-images.jianshu.io/upload_images/2818100-24302c1c852fe69a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)  
+
+#### 线程封闭
+局部变量是一种线程封闭的方式，线程封闭指的是仅在单线程内部访问数据。  
+数据库连接池的连接Connection就是通过线程封闭技术保证其不会有并发问题。  
 
 
 
