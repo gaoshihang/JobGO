@@ -38,8 +38,40 @@ Transformation有map、filter等，Action有count等。
 YARN支持动态资源配置，适合多用户情景。  
 
 #### 9.YARN-CLUSTER和YARN-CLIENT的异同点
-cluster 模式会在集群的某个节点上为 Spark 程序启动一个称为 Master 的进程，然后 Driver 程序会运行正在这个 Master 进程内部，由这种进程来启动 Driver 程序，
-客户端完成提交的步骤后就可以退出，不需要等待 Spark 程序运行结束，这是四一职中适合生产环境的运行方式
+cluster 模式会在集群的某个节点上为 Spark 程序启动一个称为 Master 的进程，然后 Driver 程序会运行正在这个 Master 进程内部，由这种进程来启动 Driver 程序，客户端完成提交的步骤后就可以退出，不需要等待 Spark 程序运行结束，这是适合生产环境的运行方式。  
+client 模式也有一个 Master 进程，但是 Driver 程序不会运行在这个 Master 进程内部，而是运行在本地，只是通过 Master 来申请资源，直到运行结束，这种模式非常适合需要交互的计算。显然 Driver 在 client 模式下会对本地资源造成一定的压力。  
+
+#### 10.解释一下 groupByKey, reduceByKey
+groupByKey该函数用于将RDD[K,V]中每个K对应的V值，合并到一个集合Iterable[V]中：  
+```
+scala> var rdd1 = sc.makeRDD(Array(("A",0),("A",2),("B",1),("B",2),("C",1)))
+rdd1: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[89] at makeRDD at :21
+ 
+scala> rdd1.groupByKey().collect
+res81: Array[(String, Iterable[Int])] = Array((A,CompactBuffer(0, 2)), (B,CompactBuffer(2, 1)), (C,CompactBuffer(1)))
+```
+
+reduceByKey该函数用于将RDD[K,V]中每个K对应的V值根据映射函数来运算:  
+```
+scala> var rdd1 = sc.makeRDD(Array(("A",0),("A",2),("B",1),("B",2),("C",1)))
+rdd1: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[91] at makeRDD at :21
+ 
+scala> rdd1.partitions.size
+res82: Int = 15
+ 
+scala> var rdd2 = rdd1.reduceByKey((x,y) => x + y)
+rdd2: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[94] at reduceByKey at :23
+ 
+scala> rdd2.collect
+res85: Array[(String, Int)] = Array((A,2), (B,3), (C,1))
+```
+
+#### 11.cache和persist的区别
+cache()是persist()的简化方式，调用persist的无参版本，也就是调用persist(StorageLevel.MEMORY_ONLY)，cache只有一个默认的缓存级别MEMORY_ONLY，即将数据持久化到内存中，而persist可以通过传递一个 StorageLevel 对象来设置缓存的存储级别。
+
+
+
+
 
 
 
