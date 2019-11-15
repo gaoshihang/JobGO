@@ -11,14 +11,16 @@ public static void bubbleSort(int[] a, int n){
   if(n <= 1) return;
   
   for(int i = 0; i < n;i++){
-    boolean stop = false;
-    for(int j = 0; j < n - 1 - i;i++){
-      int tmp = a[j+1];
-      a[j+1] = a[j];
-      a[j] = tmp;
-      stop = true;
+    boolean flag = false;
+    for(int j = 0; j < n-1-i;j++){
+      if(a[j] > a[j+1]){
+        int tmp = a[j+1];
+        a[j+1] = a[j];
+        a[j] = tmp;
+        flag = true;
+      }
     }
-    if(!stop) break;
+    if(!flag) break;
   }
 }
 
