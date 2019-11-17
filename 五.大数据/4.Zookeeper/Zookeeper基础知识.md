@@ -29,6 +29,51 @@ Paxos算法就是用来解决这类问题的，多台服务器通过内部投票
 ZooKeeper通过一种树状结构记录数据，如下图：  
 ![Zookeeper存储结构](https://static001.geekbang.org/resource/image/76/5f/76526be77b0026a0c3b2d661d362665f.png)  
 应用程序可以通过路径的方式访问ZooKeeper中的数据，比如/services/YaView/services/stupidname这样的路径方式修改、读取数据。ZooKeeper还支持监听模式，当数据发生改变的时候，通知应用程序。  
+Zookeeper中的节点称之为ZNode，其分为两种类型：  
+（1）短暂/临时（Ephemeral）：当客户端和服务端断开连接后，所创建的Znode（节点）会自动删除；  
+（2）持久（Persistent）：当客户端和服务端断开连接后，所创建的ZNode不会删除。  
+
+### 五.监听器
+Zookeeper能实现的功能都离不开监听器，常见的监听场景有以下两种：  
+（1）监听ZNode节点的数据变化；  
+（2）监听子结点的增减变化。  
+
+### 六.Zookeeper如何实现各种功能？
+来看看Zookeeper是怎么实现：统一配置管理、统一命名服务、分布式锁和集群管理的。  
+
+#### 1.统一配置管理
+假如有三个系统A、B、C，分别有三份配置，分别是A.yml,B.yml,C.yml。这三份配置非常类似，很多配置几乎一样。此时，**如果要改变其中一份的配置，可能其他两份都要改**。这时，希望把其公共的部分抽出来形成公用配置common.yml，可以把common.yml放在Zookeeper的Znode结点上，系统A、B、C监听这个结点有无变更，如果变更，即时响应。  
+![统一配置管理](https://mmbiz.qpic.cn/mmbiz_jpg/2BGWl1qPxib1WCfFk2icxudIMHNPQMHIDJkMbN7WO6ITfDPHtO09zibW532otIiaLlw5vAsvtPth0FNrz4dInibPEKA/640?wx_fmt=jpeg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)  
+
+#### 2.统一命名服务
+统一命名服务其实跟域名一样，我们为某一部分的资源取一个名字，别人通过这个名字就可以拿到对应资源。  
+如下图所示：  
+![统一命名服务](https://mmbiz.qpic.cn/mmbiz_jpg/2BGWl1qPxib1WCfFk2icxudIMHNPQMHIDJDyPibE3x7OFicib01XFjibQKUygiaPTZz5F0vPkedlanemyqKCg7JVyLDlg/640?wx_fmt=jpeg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)  
+
+#### 3.分布式锁（重要）
+系统A、B、C都去访问/locks节点，访问的时候创建**带顺序号的临时/短暂（EPHEMERAL_SEQUENTIAL）节点**，比如，A创建了id_000000节点，B创建了id_000002节点，C创建了id_000001节点。  
+![分布式锁](https://mmbiz.qpic.cn/mmbiz_jpg/2BGWl1qPxib1WCfFk2icxudIMHNPQMHIDJczzKQ6bLPE3Buwib1YJeqluPWicmZUbPadvFCU6UopDDkajKQu1FLO3A/640?wx_fmt=jpeg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)  
+
+接着，拿到/locks下的所有子结点（id_000000,id_000001,id_000002）,**判断自己创建的是不是最小的结点**。  
+（1）如果是，则拿到锁。  
+  释放锁：执行完操作后，把创建的节点给删除掉。  
+（2）如果不是，则监听比自己要小1的节点变化。  
+
+举个例子：  
+（1）A拿到所有子结点，发现自己（id_000000）是最小的，得到锁；
+（2）B发现自己（id_000002）不是最小的，所以监听比自己小1的结点id_000001的状态；  
+（3）C发现自己（id_000001）不是最小的，所以监听比自己小1的结点id_000000的状态。  
+（4）A执行完操作后，释放锁，删除结点id_000000，C发现其已经删除了，于是拿到锁；  
+（5）B同上。  
+
+#### 4.集群状态
+系统A、B、C分别在Zookeeper中创建临时节点即可。  
+![系统状态](https://mmbiz.qpic.cn/mmbiz_jpg/2BGWl1qPxib1WCfFk2icxudIMHNPQMHIDJ4lnbuRg5lEDmjlSTmdarCs8Dq7Pjg213pAq7QlXxzc7dIklkGuAWYQ/640?wx_fmt=jpeg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)  
+如果A挂了，/groupMember/A这个节点会被删除，通过监听groupMember下的子结点，B和C就能感知到A挂了（新增同理）。  
+
+#### 5.动态选举Master
+创建带顺序号的临时结点（EPHEMERAL_SEQUENTIAL），每次选取最小编号作为Master，如果Master挂了，对应结点删除，然后让新的最小编号作为Master。  
+
 
 大数据系统通常是主从架构，主服务器管理集群的状态和元信息（meta-info），为了防止脑裂，运行期只能有一台主服务器，且有另一台主服务器保持热备状态保证高可用。那么应用如何才能知道当前哪个服务器是实际工作的主服务器呢？  
 很多大数据系统都依赖于zookeeper，用于选举主服务器。一台主服务器启动后，会向Zookeeper注册自己，称为当前工作的主服务器，因此另一台服务器只能注册为热备服务器。如果当前主服务器宕机（在Zookeeper上记录的心跳数据不再更新），会利用Zookeeper的监听机制通知到热备服务器，热备服务器向Zookeeper注册称为当前主服务器，保证系统正常运行。  
